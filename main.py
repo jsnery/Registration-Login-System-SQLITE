@@ -22,11 +22,9 @@ class RegistrationLogin(ABC):
         self._user = user
         self._password = password
         self.database = sqlite3.connect(DBDIRECTORY)
-        self.cursor = self.database.cursor()
-        try:
-            self.cursor.execute('CREATE TABLE users (user text, password text)')
-        except sqlite3.Error:
-            ...
+        self.cursor = self.database.cursor()             
+        self.cursor.execute('CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, user TEXT UNIQUE, password TEXT)')
+        
         
     @abstractmethod    
     def registration(self) -> bool:...
@@ -39,16 +37,21 @@ class LoginSystem(RegistrationLogin):
     def registration(self) -> bool:
         user = self._user
         password = self._password
+        try:
+            if user == '' or password == '' or user.isspace() or password.isspace():
+                return False
+            self.cursor.execute(f'INSERT INTO users(user, password) VALUES ("{user}","{password}")')
+            self.database.commit()
+            return True
+        except sqlite3.Error:
+            return False
         
-        self.cursor.execute(f'INSERT INTO users VALUES ("{user}","{password}")')
-        self.database.commit()
-        return True
         
     def login(self) -> bool:
         user = self._user
         password = self._password
         
-        self.cursor.execute('SELECT * FROM users')
+        self.cursor.execute('SELECT user,password FROM users')
         for users in self.cursor.fetchall():
             if user == users[0] and password == users[1]:
                 return True
@@ -67,9 +70,12 @@ while True:
             clear()
             user = input('User: ')
             password = input('Password: ')
-            system_(user, password).registration()
+            if system_(user, password).registration():
+                clear()
+                print('Registration Success!\n')
+                continue
             clear()
-            print('Registration Success!\n')
+            print('Registration Failed!\n')
         case '2':  # Login
             clear()
             user = input('User: ')
